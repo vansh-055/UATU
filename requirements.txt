@@ -1,0 +1,8 @@
+mwparserfromhell==0.7.2
+chromadb==1.5.9
+sentence-transformers==6.1.0
+torch==2.14.1
+transformers==5.18.0
+accelerate==1.15.0
+pillow==12.3.0
+Flask==3.1.3

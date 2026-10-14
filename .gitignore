@@ -1,0 +1,21 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+
+# Raw wiki dump exports -- huge, not source code, reproducible by re-exporting
+/enmarveldatabase_pages_current.xml
+/enmarveldatabase_pages_current.xml.7z
+/marvelfandomcom-20200222-history.xml.7z
+/marvelfandomcom-20200222-titles.txt
+/siteinfo.json
+/index.html
+/Special:Version.html
+/errors.log
+/extract.log
+
+# Generated pipeline data -- huge, fully reproducible by rerunning scripts/
+/data/
+
+# Runtime logs
+/web/server.log

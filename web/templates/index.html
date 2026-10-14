@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uatu</title>
+<style>
+  :root {
+    --bg: #000000;
+    --panel: #161616;
+    --border: #2e2e2e;
+    --text: #e8e9f3;
+    --muted: #8d93b8;
+    --accent: #d9a94a;
+    --user-bubble: #181818;
+    --uatu-bubble: #121212;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, 'Times New Roman', serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 5vh 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: #000;
+    /* big and up top -- looming over the chat, not a thin banner */
+    min-height: min(46vh, 420px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .watcher-eyes {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(32px, 9vw, 90px);
+  }
+  .eye {
+    width: clamp(120px, 26vw, 300px);
+    height: auto;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 20px rgba(255,255,255,0.55)) drop-shadow(0 0 48px rgba(255,255,255,0.22));
+    /* movement is driven by JS (random, independent per eye -- see script),
+       not CSS keyframes, because keyframes loop on a fixed deterministic
+       cycle and the point here is that it does NOT look coordinated.
+       The short transition is what gives each jump a quick, low-latency
+       "snap" rather than a slow drift. */
+    transition: transform 0.11s cubic-bezier(0.3, 0.9, 0.3, 1);
+    will-change: transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .eye { transition: none; }
+  }
+  header h1 {
+    margin: 22px 0 0;
+    font-size: 1.6rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    font-weight: normal;
+  }
+  header p {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px 10px;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .msg { margin-bottom: 18px; display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .msg.uatu { justify-content: flex-start; }
+  .bubble {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 10px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  .user .bubble {
+    background: var(--user-bubble);
+    border: 1px solid var(--border);
+  }
+  .uatu .bubble {
+    background: var(--uatu-bubble);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 12px rgba(217, 169, 74, 0.08);
+  }
+  .sources {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: Georgia, serif;
+  }
+  .sources summary { cursor: pointer; color: var(--accent); }
+  .sources a { color: var(--muted); text-decoration: none; }
+  .sources a:hover { text-decoration: underline; color: var(--accent); }
+  .sources li { margin: 4px 0; }
+  .thinking { color: var(--muted); font-style: italic; }
+  form {
+    display: flex;
+    gap: 10px;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 14px 16px 20px;
+  }
+  input[type=text] {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: Georgia, serif;
+  }
+  input[type=text]:focus { outline: 1px solid var(--accent); }
+  button {
+    background: var(--accent);
+    color: #1a1500;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #reset {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-weight: normal;
+    padding: 12px 16px;
+  }
+  #reset:hover { color: var(--accent); border-color: var(--accent); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="watcher-eyes" aria-hidden="true">
+      <!-- Lens/almond shape, not a sharp-pointed rhombus -- curved top and
+           bottom edges meeting at pointed corners, closer to Uatu's actual
+           eye silhouette in What If...? than a strict diamond. -->
+      <svg class="eye left" viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,50 C50,5 150,5 200,50 C150,95 50,95 0,50 Z" fill="#ffffff"/>
+      </svg>
+      <svg class="eye right" viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0,50 C50,5 150,5 200,50 C150,95 50,95 0,50 Z" fill="#ffffff"/>
+      </svg>
+    </div>
+    <h1>UATU</h1>
+    <p>The Watcher chronicles what the archives record</p>
+  </header>
+  <div id="log"></div>
+  <form id="form">
+    <input id="question" type="text" autocomplete="off" placeholder="Ask of the multiverse..." />
+    <button id="send" type="submit">Ask</button>
+    <button id="reset" type="button" title="Forget this conversation">New</button>
+  </form>
+
+<script>
+const log = document.getElementById('log');
+const form = document.getElementById('form');
+const input = document.getElementById('question');
+const sendBtn = document.getElementById('send');
+const resetBtn = document.getElementById('reset');
+
+// Random, independent, low-latency "saccades" for each eye -- quick snaps to
+// a new offset followed by an irregular pause, not a smooth periodic cycle.
+// Each eye runs its own schedule (separate setTimeout chains), so the two
+// never move in lockstep -- that asymmetry is what reads as "alive" rather
+// than mechanical, versus the earlier synced pulse.
+(function animateEyes() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) return;
+
+  function jitter(el) {
+    const dx = (Math.random() * 2 - 1) * 26;  // horizontal travel range (px)
+    const dy = (Math.random() * 2 - 1) * 10;  // less vertical travel -- eyes
+                                               // mostly track side to side
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    const hold = 250 + Math.random() * 1900;  // irregular pause before next snap
+    setTimeout(() => jitter(el), hold);
+  }
+
+  document.querySelectorAll('.eye').forEach((el) => {
+    setTimeout(() => jitter(el), Math.random() * 600); // independent start offset
+  });
+})();
+
+function addBubble(role, text) {
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${role}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return bubble;
+}
+
+// Parses a `text/event-stream` body read via fetch() -- NOT the native
+// EventSource API, which only supports GET requests with no custom body.
+// We need POST + a JSON question, so we read the stream by hand: buffer
+// bytes, split on the blank-line that terminates each SSE "frame", and pull
+// the `event:`/`data:` lines out of each one.
+async function* parseSSE(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const frames = buf.split('\n\n');
+    buf = frames.pop(); // last piece may be a half-received frame -- keep it
+    for (const frame of frames) {
+      let event = 'message', data = '';
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) data = line.slice(5).trim();
+      }
+      if (data) yield { event, payload: JSON.parse(data) };
+    }
+  }
+}
+
+function addSources(bubble, sources) {
+  if (!sources || !sources.length) return;
+  const details = document.createElement('details');
+  details.className = 'sources';
+  const summary = document.createElement('summary');
+  summary.textContent = `Consulted ${sources.length} record(s) of the archive`;
+  details.appendChild(summary);
+  const list = document.createElement('ul');
+  list.style.paddingLeft = '18px';
+  for (const s of sources) {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = s.url; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = `${s.title} — ${s.heading}`;
+    li.appendChild(a);
+    list.appendChild(li);
+  }
+  details.appendChild(list);
+  bubble.appendChild(details);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = input.value.trim();
+  if (!question) return;
+  addBubble('user', question);
+  input.value = '';
+  sendBtn.disabled = true;
+
+  const bubble = addBubble('uatu', '');
+  bubble.classList.add('thinking');
+  bubble.textContent = 'The Watcher peers across the archive of realities...';
+
+  let sources = [];
+  let full = '';
+  let firstToken = true;
+
+  try {
+    const res = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    for await (const { event, payload } of parseSSE(res)) {
+      if (event === 'sources') {
+        sources = payload;
+      } else if (event === 'token') {
+        if (firstToken) { bubble.classList.remove('thinking'); bubble.textContent = ''; firstToken = false; }
+        full += payload;
+        bubble.textContent = full;
+        log.scrollTop = log.scrollHeight;
+      } else if (event === 'error') {
+        bubble.classList.remove('thinking');
+        bubble.textContent = `Error: ${payload}`;
+      }
+      // 'done' needs no handling -- it just marks the stream's end.
+    }
+    addSources(bubble, sources);
+  } catch (err) {
+    bubble.classList.remove('thinking');
+    bubble.textContent = `The archive could not be reached: ${err}`;
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+});
+
+resetBtn.addEventListener('click', async () => {
+  await fetch('/api/reset', { method: 'POST' });
+  log.innerHTML = '';
+});
+</script>
+</body>
+</html>
